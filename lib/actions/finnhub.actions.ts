@@ -3,6 +3,7 @@
 import { getDateRange, validateArticle, formatArticle } from '@/lib/utils';
 import { POPULAR_STOCK_SYMBOLS } from '@/lib/constants';
 import { cache } from 'react';
+import { getCurrentUserWatchlistSymbols } from '@/lib/actions/watchlist.actions';
 
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
 const NEXT_PUBLIC_FINNHUB_API_KEY = process.env.NEXT_PUBLIC_FINNHUB_API_KEY ?? '';
@@ -100,6 +101,7 @@ export async function getNews(symbols?: string[]): Promise<MarketNewsArticle[]> 
 
 export const searchStocks = cache(async (query?: string): Promise<StockWithWatchlistStatus[]> => {
     try {
+        const watchlistSymbols = new Set(await getCurrentUserWatchlistSymbols());
         const token = process.env.FINNHUB_API_KEY ?? NEXT_PUBLIC_FINNHUB_API_KEY;
         if (!token) {
             // If no token, log and return empty to avoid throwing per requirements
@@ -166,7 +168,7 @@ export const searchStocks = cache(async (query?: string): Promise<StockWithWatch
                     name,
                     exchange,
                     type,
-                    isInWatchlist: false,
+                    isInWatchlist: watchlistSymbols.has(upper),
                 };
                 return item;
             })

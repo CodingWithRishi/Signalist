@@ -15,13 +15,29 @@ export const getAllUsersForNewsEmail = async () => {
             throw new Error("Mongoose connection not connected");
         }
 
-        const users = await db.collection("users").find(
-            { email: { $exists: true, $ne: null } },
-            { projection: { _id: 1, id: 1, email: 1, name: 1, country: 1 } }
-        ).toArray();
+        // Better Auth stores records in "user". Keep "users" as fallback for legacy data.
+        const [authUsers, legacyUsers] = await Promise.all([
+            db.collection("user").find(
+                { email: { $exists: true, $ne: null } },
+                { projection: { _id: 1, id: 1, email: 1, name: 1, country: 1 } }
+            ).toArray(),
+            db.collection("users").find(
+                { email: { $exists: true, $ne: null } },
+                { projection: { _id: 1, id: 1, email: 1, name: 1, country: 1 } }
+            ).toArray()
+        ]);
+
+        const users = [...authUsers, ...legacyUsers];
+        const seenEmails = new Set<string>();
 
         return users
             .filter((user) => user.email && user.name)
+            .filter((user) => {
+                const email = String(user.email).toLowerCase();
+                if (seenEmails.has(email)) return false;
+                seenEmails.add(email);
+                return true;
+            })
             .map((user) => ({
                 id: user.id || user._id?.toString() || '',
                 email: user.email,
